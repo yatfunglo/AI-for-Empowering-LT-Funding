@@ -7,7 +7,6 @@ st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖"
 # 2. 初始化 Client
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-    # 💡 終極修正：完全唔加 api_version，等 SDK 自動揀最穩定嘅預設路徑
     client = genai.Client(api_key=API_KEY)
 except Exception:
     st.error("❌ API Key 未設定，請檢查 Secrets 設置。")
@@ -34,7 +33,7 @@ SYSTEM_PROMPT = """
   1. 涉及開支時，主動提醒「按摩椅案例」及「必須具備 NPU」，並強調單據要留 7 年。
   2. 涉及產品時，主動提醒避開「49,999 罐頭套餐」及「無 AI 邏輯的機械人課程」。
 - KPI 輔導：主動幫忙核對「3 科 2 級別、共 6 個實例」的進度。
-- 私營優先：優先推薦「Local LLM (本地模型)」方案，保障學生私隱。
+- 私隱優先：優先推薦「Local LLM (本地模型)」方案，保障學生私隱。
 
 # 限制（禁令）
 - 嚴禁建議資助教師/家長課程（已有 15 億專款）。
@@ -64,8 +63,8 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 終極穩定寫法：將 SYSTEM_PROMPT 擺喺 contents 第一位傳過去
-            # 咁樣完全唔會觸發 JSON 標籤錯誤，亦都唔會跳去 v1beta
+            # 💡 終極修正：唔用 config 參數，直接將 SYSTEM_PROMPT 注入 contents
+            # 咁樣做會行返最預設、最穩定嘅 API 呼叫路徑，避開 404
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
                 contents=[SYSTEM_PROMPT, prompt]
