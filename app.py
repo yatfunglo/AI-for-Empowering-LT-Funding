@@ -1,15 +1,16 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 
-# 1. 設置與初始化
+# 1. 初始化最新穩定版 Client
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=API_KEY)
+    # 💡 關鍵：初始化時就鎖定 v1 版本，徹底避開 404
+    client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1'})
 except Exception:
-    st.error("❌ 未能在 Streamlit Secrets 中找到 GOOGLE_API_KEY。")
+    st.error("❌ API Key 未設定，請檢查 Secrets。")
     st.stop()
 
-# 2. 你的專業指引 (絕對不改動版)
+# 2. 你的專業指引 (原封不動，保留靈魂)
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
@@ -40,6 +41,7 @@ SYSTEM_PROMPT = """
 """
 
 # 3. 網頁介面
+st.set_page_config(page_title="智啟學教專業顧問", page_icon="🤖")
 st.title("🤖 「智啟學教」撥款專業顧問")
 
 if "messages" not in st.session_state:
@@ -58,14 +60,21 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 終極方案：唔用任何 Config 參數，直接將 SYSTEM_PROMPT 擺入對話
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            # 將指引同問題合併成一個 list 傳送，咁樣會行最穩定嘅 v1 路徑
-            response = model.generate_content([SYSTEM_PROMPT, prompt])
+            # 💡 終極修正：將 SYSTEM_PROMPT 以最穩定方式傳入
+            response = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=prompt,
+                config={
+                    'system_instruction': SYSTEM_PROMPT
+                }
+            )
             
-            full_response = response.text
-            message_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            if response.text:
+                full_response = response.text
+                message_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+            else:
+                st.error("AI 回應空白，請重試。")
 
         except Exception as e:
             st.error("⚠️ 系統連線微調中，請 Reboot App。")
