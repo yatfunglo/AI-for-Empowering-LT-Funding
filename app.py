@@ -1,15 +1,18 @@
 import streamlit as st
 from google import genai
 
-# 1. 初始化 Client (保持 v1 穩定路徑)
+# 1. 設置網頁資訊
+st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖", layout="centered")
+
+# 2. 初始化 Client (最簡化版，唔加 api_version)
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-    client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1'})
+    client = genai.Client(api_key=API_KEY)
 except Exception:
     st.error("❌ API Key 未設定，請檢查 Secrets 設置。")
     st.stop()
 
-# 2. 你的專業指引 (維持原本最強版本，一字不改)
+# 3. 你的專業指引 (一字不改，保留靈魂)
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
@@ -39,10 +42,11 @@ SYSTEM_PROMPT = """
 - 若無資料，請坦誠告知，不要胡編。
 """
 
-# 3. 網頁介面
-st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖")
+# 4. 介面標題
 st.title("🤖 「智啟學教」撥款專業顧問")
+st.markdown("---")
 
+# 5. 初始化對話紀錄
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -50,7 +54,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 4. 處理輸入
+# 6. 處理輸入
 if prompt := st.chat_input("老師，有咩可以幫到你？"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -59,8 +63,8 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 終極修正：唔用 config 參數（避開 systemInstruction 標籤錯誤）
-            # 直接將指引作為 contents 嘅第一個元素傳過去
+            # 💡 終極修正：將 SYSTEM_PROMPT 直接注入 contents，唔用 config
+            # 咁樣做會行返最預設、最穩定嘅 API 呼叫路徑
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
                 contents=[SYSTEM_PROMPT, prompt]
