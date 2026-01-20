@@ -63,7 +63,7 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 終極修正：唔用 config 參數，直接將 SYSTEM_PROMPT 注入 contents
+            # 💡 終極修正：唔用 config 參數，將 SYSTEM_PROMPT 直接注入 contents
             # 咁樣做會行返最預設、最穩定嘅 API 呼叫路徑，避開 404
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
