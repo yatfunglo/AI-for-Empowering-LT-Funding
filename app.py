@@ -9,7 +9,7 @@ except Exception:
     st.error("❌ API Key 未設定，請檢查 Secrets。")
     st.stop()
 
-# 2. 你的專業指引 (絕對不改動版)
+# 2. 你的專業指引 (原封不動)
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
@@ -59,12 +59,14 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 核心技術修正：
-            # 1. 將 SYSTEM_PROMPT 擺喺 contents 第一位，確保角色靈魂唔變
-            # 2. 唔加 tools (Google Search)，避開引起 404 的 v1beta 隧道
+            # 💡 終極修正：將 SYSTEM_PROMPT 以「System」身份直接傳入
+            # 移除 tools 參數，避開引起 404 的 v1beta 隧道
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
-                contents=[SYSTEM_PROMPT, prompt]
+                contents=prompt,
+                config={
+                    'system_instruction': SYSTEM_PROMPT
+                }
             )
             
             full_response = response.text
