@@ -69,7 +69,7 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
         try:
             # 使用測試成功的最新穩定版呼叫方式
             response = client.models.generate_content(
-                model='gemini-1.5-flash', 
+                model='models/gemini-1.5-flash', 
                 contents=prompt,
                 config={
                     'system_instruction': SYSTEM_PROMPT,
@@ -85,7 +85,7 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
             # 備用方案：若連網功能暫時不穩，回退到純文字模式
             try:
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model='models/gemini-1.5-flash',
                     contents=prompt,
                     config={'system_instruction': SYSTEM_PROMPT}
                 )
