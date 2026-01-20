@@ -1,16 +1,15 @@
 import streamlit as st
 from google import genai
 
-# 1. 初始化最新穩定版 Client
+# 1. 初始化 Client (保持 v1 穩定路徑)
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-    # 💡 關鍵：初始化時就鎖定 v1 版本，徹底避開 404
     client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1'})
 except Exception:
-    st.error("❌ API Key 未設定，請檢查 Secrets。")
+    st.error("❌ API Key 未設定，請檢查 Secrets 設置。")
     st.stop()
 
-# 2. 你的專業指引 (原封不動，保留靈魂)
+# 2. 你的專業指引 (維持原本最強版本，一字不改)
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
@@ -41,7 +40,7 @@ SYSTEM_PROMPT = """
 """
 
 # 3. 網頁介面
-st.set_page_config(page_title="智啟學教專業顧問", page_icon="🤖")
+st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖")
 st.title("🤖 「智啟學教」撥款專業顧問")
 
 if "messages" not in st.session_state:
@@ -60,13 +59,11 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 終極修正：將 SYSTEM_PROMPT 以最穩定方式傳入
+            # 💡 終極修正：唔用 config 參數（避開 systemInstruction 標籤錯誤）
+            # 直接將指引作為 contents 嘅第一個元素傳過去
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
-                contents=prompt,
-                config={
-                    'system_instruction': SYSTEM_PROMPT
-                }
+                contents=[SYSTEM_PROMPT, prompt]
             )
             
             if response.text:
@@ -74,7 +71,7 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
                 message_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
             else:
-                st.error("AI 回應空白，請重試。")
+                st.error("AI 暫時反應唔到，請重試。")
 
         except Exception as e:
             st.error("⚠️ 系統連線微調中，請 Reboot App。")
