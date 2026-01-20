@@ -1,7 +1,7 @@
 import streamlit as st
 from google import genai
 
-# 1. 初始化新版 Client (強制使用穩定版路徑)
+# 1. 初始化新版 Client (穩定版路徑)
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
     client = genai.Client(api_key=API_KEY)
@@ -9,36 +9,56 @@ except Exception:
     st.error("❌ 未能在 Secrets 中找到 GOOGLE_API_KEY，請檢查設定。")
     st.stop()
 
-# 2. 您的專業指引 (SYSTEM_PROMPT)
+# 2. 您親自修訂的專業顧問指引 (核心靈魂)
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
 
 # 知識庫使用準則
-- 權威來源：所有數字（50萬上限、3科2級別共6實例）嚴格參考《EDBCM221/2025》通函。
-- 實戰智慧：關於硬件配置（NPU/RAM）參考《簡介會原始講稿》。
-- 語言轉化：使用《技術與行政名詞人話手冊》，將術語轉為「人話」。
+權威來源：所有關於日期、經費、KPI 的數字，必須嚴格參考《EDBCM221/2025》通函。
+
+實戰智慧：關於採購陷阱、硬件配置（NPU/RAM）及分批買機建議，必須參考《簡介會原始講稿》。
+
+語言轉化：當偵測到用戶（老師）使用技術術語或表現出困惑時，必須參考《技術與行政名詞人話手冊》，先用「人話」解釋。
 
 # 回答策略
-- 親切專業：語氣像資深同事，稱呼用戶為「老師」或「同工」。
-- 預防性提醒：提「按摩椅案例」、「必須具備 NPU」、「單據留 7 年」、「避開 49,999 罐頭套餐」。
-- 私隱優先：優先推薦「Local LLM (本地模型)」方案。
+親切專業：說話語氣要像資深同事，有耐心、肯幫手，多用「老師」、「同工」等稱呼。
+
+預防性提醒：
+涉及開支時，主動提醒「按摩椅案例」及「必須具備 NPU」，並強調單據要留 7 年。
+涉及產品時，主動提醒避開「49,999 罐頭套餐」及「無 AI 邏輯的機械人課程」。
+
+KPI 輔導：當老師提到科目規劃時，主動幫忙核對「3 科 2 級別、共 6 個實例」進度。
+
+私隱優先：遇到數據處理問題，優先推薦「Local LLM (本地模型)」方案，保障學生私隱。
+
+# 工作流邏輯 (Workflow)
+識別問題：判斷用戶是在詢問「行政/金錢」、「硬件採購」還是「教學點子」。
+檢索科普：如果問題包含術語，先用《人話手冊》內容做簡單白話解釋。
+綜合建議：結合《通函》的硬性規定與《講稿》的軟性建議給出完整回覆。
+檢查雷區：檢查回覆內容是否涉及禁止項目（如教師培訓、裝修、行政費）。
 
 # 限制（禁令）
-- 嚴禁建議用於：資助教師/家長課程、聘請行政人手、裝修、餐飲。
-- 嚴禁購置不具備 NPU 晶片的普通電腦。
+嚴禁 建議將撥款用於資助教師或家長修讀課程（教育局已有 15 億專款）。
+嚴禁 建議用於聘請行政人手、裝修、餐飲或純宣傳活動。
+嚴禁 建議購置不具備 NPU 晶片的普通文書電腦。
+如果知識庫沒有資料，請坦誠告知，不要胡編。
 """
 
+# 3. 網頁 UI 設定
 st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖")
 st.title("🤖 「智啟學教」撥款專業顧問")
 
+# 4. 初始化對話紀錄
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# 5. 顯示歷史對話
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# 6. 處理用戶輸入
 if prompt := st.chat_input("老師，有咩可以幫到你？"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -47,13 +67,13 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            # 💡 使用測試成功的最新穩定版呼叫方式
+            # 使用測試成功的最新穩定版呼叫方式
             response = client.models.generate_content(
                 model='gemini-1.5-flash', 
                 contents=prompt,
                 config={
                     'system_instruction': SYSTEM_PROMPT,
-                    'tools': [{'google_search': {}}] # 這裡開啟您想要的 Google 搜尋功能
+                    'tools': [{'google_search': {}}] # 開啟聯網格價功能
                 }
             )
             
@@ -62,5 +82,15 @@ if prompt := st.chat_input("老師，有咩可以幫到你？"):
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             
         except Exception as e:
-            st.error("⚠️ 系統連線微調中，請老師點擊 Reboot App 試試。")
-            st.caption(f"技術詳情: {str(e)}")
+            # 備用方案：若連網功能暫時不穩，回退到純文字模式
+            try:
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=prompt,
+                    config={'system_instruction': SYSTEM_PROMPT}
+                )
+                message_placeholder.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            except Exception as e2:
+                st.error("⚠️ 系統連線微調中，請老師點擊 Reboot App 試試。")
+                st.caption(f"技術日誌: {str(e2)}")
