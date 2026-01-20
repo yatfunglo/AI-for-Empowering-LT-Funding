@@ -1,19 +1,14 @@
 import streamlit as st
 from google import genai
 
-# 1. 設置網頁資訊
-st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖", layout="centered")
-
-# 2. 安全讀取 API Key 並初始化最新版 Client
+# 1. 初始化 Client
 try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-    # 使用 2026 最新穩定版 SDK
-    client = genai.Client(api_key=API_KEY)
+    client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
-    st.error("❌ 未能在 Streamlit Secrets 中找到 GOOGLE_API_KEY。請檢查後台設定。")
+    st.error("❌ API Key 未設定，請檢查 Secrets。")
     st.stop()
 
-# 3. 你原本嘅專業指引 (SYSTEM_PROMPT) 完整保留
+# 2. 你的專業指引
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
@@ -26,8 +21,8 @@ SYSTEM_PROMPT = """
 # 回答策略
 - 親切專業：說話語氣要像資深同事，多用「老師」、「同工」等稱呼。
 - 預防性提醒：
-  1. 涉及開支時，主動提醒「按摩椅案例」及「必須具備 NPU」，並強調單據要留 7 年。
-  2. 涉及產品時，主動提醒避開「49,999 罐頭套餐」及「無 AI 邏輯的機械人課程」。
+  1. 涉及開支時，主動提醒「按摩椅案例」及「必須具備 NPU」，並強調單據要留 7 年。
+  2. 涉及產品時，主動提醒避開「49,999 罐頭套餐」及「無 AI 邏輯的機械人課程」。
 - KPI 輔導：主動幫忙核對「3 科 2 級別、共 6 個實例」的進度。
 - 私隱優先：優先推薦「Local LLM (本地模型)」方案，保障學生私隱。
 
@@ -41,12 +36,9 @@ SYSTEM_PROMPT = """
 - 若無資料，請坦誠告知，不要胡編。
 """
 
-# 4. 介面標題
+# 3. 網頁介面與邏輯
 st.title("🤖 「智啟學教」撥款專業顧問")
-st.markdown("---")
-st.info("同工你好！關於 50 萬「智啟學教」撥款，我可以用 AI 幫你一齊諗諗點樣用得最「智」醒。")
 
-# 5. 初始化對話紀錄
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -55,34 +47,24 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. 處理用戶輸入與模型呼叫 (最新 Client 寫法)
+# 處理輸入
 if prompt := st.chat_input("老師，有咩可以幫到你？"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        
         try:
-            # 💡 核心穩定修正：使用新版 SDK 呼叫，強制避開 v1beta 陷阱
+            # 💡 呼叫最新穩定版 Gemini 1.5 Flash
             response = client.models.generate_content(
                 model='gemini-1.5-flash',
                 contents=prompt,
                 config={
                     'system_instruction': SYSTEM_PROMPT,
-                    'tools': [{'google_search': {}}] # 宜家可以安全開返 Search 喇
+                    'tools': [{'google_search': {}}] 
                 }
             )
-            
-            if response.text:
-                full_response = response.text
-                message_placeholder.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
-            else:
-                st.error("AI 暫時反應唔到，請試下重新提問。")
-
+            st.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
         except Exception as e:
-            st.error("⚠️ 同工，系統連線微調中，請稍後再試。")
-            with st.expander("技術日誌 (IT組)"):
-                st.write(str(e))
+            st.error(f"⚠️ 連線微調中，請點擊右下角 Reboot。詳情: {e}")
