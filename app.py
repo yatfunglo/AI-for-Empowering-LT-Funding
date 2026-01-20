@@ -1,19 +1,17 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 
-# 1. 設置網頁資訊
-st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖", layout="centered")
-
-# 2. 初始化 Client (最強連線修正)
+# 1. 初始化 (使用舊版穩定套件)
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-    # 💡 關鍵修正：唔好畀 SDK 亂跳，我哋喺連線層直接鎖定
-    client = genai.Client(api_key=API_KEY)
-except Exception:
-    st.error("❌ API Key 未設定，請檢查 Secrets 設置。")
+    genai.configure(api_key=API_KEY)
+    # 💡 鎖定 v1 幹線
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error("❌ API Key 設定有誤，請檢查 Secrets。")
     st.stop()
 
-# 3. 你的專業指引 (一字不改，保留靈魂)
+# 2. 你的專業指引 (一字不改，保留靈魂)
 SYSTEM_PROMPT = """
 # 角色
 你是一位具備 20 年經驗的香港學校 IT 老師，同時也是教育局「『智』啟學教」撥款計劃的專業顧問。你的任務是協助校內老師輕鬆理解 50 萬撥款的申請、採購及教學應用，確保計劃符合官方要求且不踩雷。
@@ -43,11 +41,10 @@ SYSTEM_PROMPT = """
 - 若無資料，請坦誠告知，不要胡編。
 """
 
-# 4. 介面標題
+# 3. 網頁介面
+st.set_page_config(page_title="智啟學教撥款專業顧問", page_icon="🤖")
 st.title("🤖 「智啟學教」撥款專業顧問")
-st.markdown("---")
 
-# 5. 初始化對話紀錄
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -55,30 +52,25 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. 處理輸入 (避開 Config 報錯)
+# 4. 處理輸入 (使用注入法確保角色穩定)
 if prompt := st.chat_input("老師，有咩可以幫到你？"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
         try:
-            # 💡 終極穩定寫法：將 SYSTEM_PROMPT 直接注入 contents
-            # 唔好用 system_instruction 標籤，費事 SDK 喺轉換 JSON 時出錯
-            response = client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=[SYSTEM_PROMPT, prompt]
-            )
+            # 💡 終極修正：將 SYSTEM_PROMPT 同 prompt 合併，行最穩定的 v1 路徑
+            response = model.generate_content([SYSTEM_PROMPT, prompt])
             
             if response.text:
                 full_response = response.text
-                message_placeholder.markdown(full_response)
+                st.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
             else:
-                st.error("AI 反應空白，請重試。")
+                st.error("AI 暫時反應唔到，請重試。")
 
         except Exception as e:
-            st.error("⚠️ 系統連線微調中，請點擊 Reboot App。")
-            with st.expander("查看 IT 組技術日誌"):
+            st.error("⚠️ 連線失敗，請點擊 Reboot App。")
+            with st.expander("IT 組技術日誌"):
                 st.write(str(e))
